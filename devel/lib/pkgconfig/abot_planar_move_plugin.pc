@@ -1,0 +1,8 @@
+prefix=/home/aaron/shoot_race/devel
+
+Name: abot_planar_move_plugin
+Description: Description of abot_planar_move_plugin
+Version: 0.0.0
+Cflags: -I/home/aaron/shoot_race/src/abot_planar_move_plugin/include
+Libs: -L${prefix}/lib -lgazebo_ros_planar_move_fixed
+Requires: gazebo_ros geometry_msgs nav_msgs roscpp tf

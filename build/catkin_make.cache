@@ -1,0 +1,2 @@
+abot_planar_move_plugin:ar_track_alvar/ar_track_alvar:ar_track_alvar/ar_track_alvar_msgs:robot_slam:target_detector
+-DCATKIN_DEVEL_PREFIX=/home/aaron/shoot_race/devel -DCMAKE_INSTALL_PREFIX=/home/aaron/shoot_race/install -G Unix Makefiles
