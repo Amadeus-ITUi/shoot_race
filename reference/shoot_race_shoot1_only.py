@@ -79,7 +79,8 @@ MOVING_TRACK_MAX = 0.12
 DIRECT_DRIVE_TIMEOUT = 20
 DIRECT_DRIVE_SPEED = 0.55
 DIRECT_YAW_KP = 1.8
-DIRECT_YAW_MAX = 0.35
+DIRECT_YAW_MIN = 1.0
+DIRECT_YAW_MAX = 1.5
 DIRECT_YAW_TOLERANCE = radians(3)
 DIRECT_X_KP = 1.2
 DIRECT_X_MAX = 0.15
@@ -87,11 +88,12 @@ DIRECT_X_MAX = 0.15
 # 任务点最终对位：move_base 到达后再用 Gazebo 真值做厘米级闭环。
 FINE_POSITION_TOLERANCE = 0.010
 FINE_YAW_TOLERANCE = radians(3)
-FINE_CONTROL_TIMEOUT = 12
+FINE_CONTROL_TIMEOUT = 15
 FINE_LINEAR_KP = 1.2
 FINE_LINEAR_MAX = 0.12
 FINE_ANGULAR_KP = 1.8
-FINE_ANGULAR_MAX = 0.30
+FINE_ANGULAR_MIN = 1.0
+FINE_ANGULAR_MAX = 1.5
 
 
 def euler_to_quaternion(yaw_deg):
@@ -109,6 +111,14 @@ def normalize_angle(angle):
     while angle < -pi:
         angle += 2 * pi
     return angle
+
+
+def angular_command(error, kp, min_speed, max_speed):
+    """带底盘转向死区补偿的角速度 P 控制。"""
+    command = max(-max_speed, min(max_speed, kp * error))
+    if 0 < abs(command) < min_speed:
+        command = min_speed if command > 0 else -min_speed
+    return command
 
 
 class Shoot1Only:
@@ -402,9 +412,11 @@ class Shoot1Only:
                     -FINE_LINEAR_MAX,
                     min(FINE_LINEAR_MAX, FINE_LINEAR_KP * error_y),
                 )
-                t.angular.z = max(
-                    -FINE_ANGULAR_MAX,
-                    min(FINE_ANGULAR_MAX, FINE_ANGULAR_KP * yaw_error),
+                t.angular.z = angular_command(
+                    yaw_error,
+                    FINE_ANGULAR_KP,
+                    FINE_ANGULAR_MIN,
+                    FINE_ANGULAR_MAX,
                 )
                 self.cmd_vel_pub.publish(t)
                 rospy.loginfo_throttle(
@@ -443,9 +455,11 @@ class Shoot1Only:
             else:
                 stable_frames = 0
                 t = Twist()
-                t.angular.z = max(
-                    -DIRECT_YAW_MAX,
-                    min(DIRECT_YAW_MAX, DIRECT_YAW_KP * error),
+                t.angular.z = angular_command(
+                    error,
+                    DIRECT_YAW_KP,
+                    DIRECT_YAW_MIN,
+                    DIRECT_YAW_MAX,
                 )
                 self.cmd_vel_pub.publish(t)
             rate.sleep()
@@ -506,9 +520,11 @@ class Shoot1Only:
                     -FINE_LINEAR_MAX,
                     min(FINE_LINEAR_MAX, FINE_LINEAR_KP * local_y),
                 )
-                t.angular.z = max(
-                    -FINE_ANGULAR_MAX,
-                    min(FINE_ANGULAR_MAX, FINE_ANGULAR_KP * error_yaw),
+                t.angular.z = angular_command(
+                    error_yaw,
+                    FINE_ANGULAR_KP,
+                    FINE_ANGULAR_MIN,
+                    FINE_ANGULAR_MAX,
                 )
                 self.cmd_vel_pub.publish(t)
                 rospy.loginfo_throttle(
@@ -565,9 +581,11 @@ class Shoot1Only:
                 -DIRECT_X_MAX,
                 min(DIRECT_X_MAX, -DIRECT_X_KP * world_y_error),
             )
-            t.angular.z = max(
-                -DIRECT_YAW_MAX,
-                min(DIRECT_YAW_MAX, DIRECT_YAW_KP * yaw_error),
+            t.angular.z = angular_command(
+                yaw_error,
+                DIRECT_YAW_KP,
+                DIRECT_YAW_MIN,
+                DIRECT_YAW_MAX,
             )
             self.cmd_vel_pub.publish(t)
             rospy.loginfo_throttle(
