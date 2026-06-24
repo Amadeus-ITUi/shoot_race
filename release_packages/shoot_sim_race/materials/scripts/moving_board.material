@@ -1,0 +1,5 @@
+// 平移靶长方形正面贴图，替换 textures/board.png 即可
+material MovingBoardTexture
+{
+  technique { pass { texture_unit { texture ../textures/board.png } } }
+}

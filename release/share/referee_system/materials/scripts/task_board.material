@@ -1,0 +1,4 @@
+material TaskBoardTexture
+{
+  technique { pass { texture_unit { texture ../textures/task_board.jpg } } }
+}

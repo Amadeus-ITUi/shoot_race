@@ -1,0 +1,26 @@
+<launch>
+  <arg name="image_topic" default="/camera/image" />
+  <arg name="camera_info_topic" default="/camera/camera_info" doc="相机标定话题，用于 RViz Camera 显示" />
+  <arg name="output_topic" default="/target_center_pixel" />
+  <arg name="frame_id" default="camera_link" />
+  <arg name="visualize" default="true" doc="是否发布检测可视化图像到 ~debug_image" />
+
+  <node pkg="target_detector" type="target_detector_node.py" name="target_detector" output="screen">
+    <param name="image_topic" value="$(arg image_topic)" />
+    <param name="camera_info_topic" value="$(arg camera_info_topic)" />
+    <param name="output_topic" value="$(arg output_topic)" />
+    <param name="frame_id" value="$(arg frame_id)" />
+    <param name="visualize" value="$(arg visualize)" />
+    <!-- 霍夫圆参数，param2 越大检测越严格、误检越少 -->
+    <param name="dp" value="1.0" />
+    <param name="min_dist" value="80" />
+    <param name="param1" value="100" />
+    <param name="param2" value="55" />
+    <param name="min_radius" value="15" />
+    <param name="max_radius" value="0" />
+    <!-- 同心圆验证：只有多圆同心才认为是真靶 -->
+    <param name="center_tolerance" value="25" />
+    <param name="min_concentric" value="2" />
+    <param name="smooth_alpha" value="0.3" />
+  </node>
+</launch>

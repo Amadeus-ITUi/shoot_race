@@ -1,0 +1,5 @@
+// 第四种靶：静止长方形靶板正面贴图。替换 textures/static_board.png 即可
+material StaticBoardTexture
+{
+  technique { pass { texture_unit { texture ../textures/static_board.png } } }
+}

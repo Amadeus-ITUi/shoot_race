@@ -1,0 +1,57 @@
+<launch>
+
+    <!-- 设置launch文件的参数 -->
+    <arg name="paused" default="false"/>
+    <arg name="world_name" value="$(find abot_model)/worlds/race.world"/>
+    <arg name="use_sim_time" default="true"/>
+    <arg name="gui" default="true"/>
+    <arg name="headless" default="false"/>
+    <arg name="debug" default="false"/>
+    <arg name="x_pos" default="0"/>
+    <arg name="y_pos" default="0"/>
+    <arg name="z_pos" default="0"/>
+
+    <!-- 运行gazebo仿真环境。设置 GAZEBO_RESOURCE_PATH 以便加载旋转靶贴图 -->
+    <env name="GAZEBO_RESOURCE_PATH" value="$(find shoot_sim)/materials:$(optenv GAZEBO_RESOURCE_PATH)" />
+    <!-- 加载修复版 planar_move 插件（支持重力下落和斜坡） -->
+    <env name="GAZEBO_PLUGIN_PATH" value="$(find abot_planar_move_plugin)/../../devel/lib:$(optenv GAZEBO_PLUGIN_PATH)" />
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="world_name" value="$(arg world_name)" />
+        <arg name="debug" value="$(arg debug)" />
+        <arg name="gui" value="$(arg gui)" />
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+        <arg name="headless" value="$(arg headless)"/>
+    </include>
+    <!--运行仿真模型  更改仿真模型 abot_model_ackermann / abot_model_mecanum -->
+    <param
+    name="robot_description"  textfile="$(find abot_model)/urdf/abot_model.urdf" />
+
+    <!-- 运行joint_state_publisher节点，发布机器人的关节状态  -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" >
+    </node> 
+
+    <!-- 运行robot_state_publisher节点，发布tf  -->
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"  output="screen" >
+        <param name="publish_frequency" type="double" value="50.0" />
+    </node>
+    <!-- 在gazebo中加载机器人模型-->
+    <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+          args="-urdf -model abot_model -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -param robot_description"/>
+
+    <!-- 发射子弹节点：从 TF 的 shout_link 位置生成物理球体。shoot_height 用于靶子高度对齐 -->
+    <arg name="shoot_height" default="0.26" />
+    <include file="$(find shoot_sim)/launch/shoot_sim.launch">
+      <arg name="world_frame" value="odom" />
+      <arg name="shoot_frame" value="shout_link" />
+      <arg name="shoot_axis" value="x" />
+      <arg name="shoot_height" value="$(arg shoot_height)" />
+    </include>
+
+    <!-- 三种射击目标靶：固定靶 / 旋转靶 / 平移靶 -->
+    <include file="$(find shoot_sim)/launch/shoot_targets.launch" />
+
+    <!-- 裁判系统：订阅命中话题，累计得分，发布 /referee/score -->
+    <include file="$(find referee_system)/launch/referee.launch" />
+
+</launch>

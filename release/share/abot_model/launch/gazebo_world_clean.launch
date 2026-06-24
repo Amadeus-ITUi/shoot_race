@@ -1,0 +1,55 @@
+<launch>
+    <!-- ====================== 基础参数 ====================== -->
+    <arg name="paused" default="false"/>
+    <arg name="world_name" value="$(find abot_model)/worlds/race.world"/>
+    <arg name="use_sim_time" default="true"/>
+    <arg name="gui" default="true"/>
+    <arg name="headless" default="false"/>
+    <arg name="debug" default="false"/>
+    <arg name="x_pos" default="0"/>
+    <arg name="y_pos" default="0"/>
+    <arg name="z_pos" default="0"/>
+
+    <!-- ======================  Gazebo 环境 ====================== -->
+    <env name="GAZEBO_RESOURCE_PATH" value="$(find shoot_sim)/materials:$(optenv GAZEBO_RESOURCE_PATH)" />
+    <env name="GAZEBO_PLUGIN_PATH" value="$(find abot_planar_move_plugin)/../../devel/lib:$(optenv GAZEBO_PLUGIN_PATH)" />
+
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="world_name" value="$(arg world_name)" />
+        <arg name="debug" value="$(arg debug)" />
+        <arg name="gui" value="$(arg gui)" />
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+        <arg name="headless" value="$(arg headless)"/>
+    </include>
+
+    <!-- ====================== 加载你的 URDF（你自己修改的！） ====================== -->
+    <param name="robot_description" textfile="$(find abot_model)/urdf/abot_model.urdf" />
+
+    <!-- ====================== 机器人状态发布 ====================== -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen">
+        <param name="publish_frequency" type="double" value="50.0" />
+    </node>
+
+    <!-- ====================== ✅ 加载你自己的小车（唯一模型！） ====================== -->
+    <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+          args="-urdf -model abot_model -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -param robot_description"/>
+
+    <!-- ====================== ✅ 射击系统（只保留功能，不生成模型） ====================== -->
+    <arg name="shoot_height" default="0.26"/>
+    <include file="$(find shoot_sim)/launch/shoot_sim.launch">
+        <arg name="world_frame" value="odom"/>
+        <arg name="shoot_frame" value="shout_link"/>
+        <arg name="shoot_axis" value="x"/>
+        <arg name="shoot_height" value="$(arg shoot_height)"/>
+    </include>
+
+    <!-- ====================== ✅ 靶子（保留） ====================== -->
+    <include file="$(find shoot_sim)/launch/shoot_targets.launch" />
+
+    <!-- ====================== ✅ 裁判系统（保留） ====================== -->
+    <include file="$(find referee_system)/launch/referee.launch" />
+
+</launch>
+

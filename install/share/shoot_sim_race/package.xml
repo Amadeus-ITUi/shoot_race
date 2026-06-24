@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>shoot_sim_race</name>
+  <version>0.0.1</version>
+  <description>射击仿真保密版：与 shoot_sim 功能相同，但节点为 PyInstaller 打包的二进制可执行文件，无 Python 源码。</description>
+
+  <maintainer email="todo@example.com">TODO</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>rospy</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>gazebo_msgs</depend>
+
+  <export>
+  </export>
+</package>

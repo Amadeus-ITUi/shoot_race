@@ -1,0 +1,21 @@
+// 5 个叶片可贴不同图，分别用 1.png～5.png
+material WheelLeaf1Texture
+{
+  technique { pass { texture_unit { texture ../textures/1.png } } }
+}
+material WheelLeaf2Texture
+{
+  technique { pass { texture_unit { texture ../textures/2.png } } }
+}
+material WheelLeaf3Texture
+{
+  technique { pass { texture_unit { texture ../textures/3.png } } }
+}
+material WheelLeaf4Texture
+{
+  technique { pass { texture_unit { texture ../textures/4.png } } }
+}
+material WheelLeaf5Texture
+{
+  technique { pass { texture_unit { texture ../textures/5.png } } }
+}

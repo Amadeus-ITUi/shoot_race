@@ -1,0 +1,47 @@
+<launch>
+  <!-- 三种靶子：固定靶 / 旋转靶 / 平移靶。收到 spawn_task_board 后按 target_X_position 选择位置生成 -->
+  <node pkg="shoot_sim" type="shoot_targets_node.py" name="shoot_targets" output="screen">
+    <!-- 更新频率：越高旋转/平移越流畅，但过大会增加 CPU。100~200 较平衡 -->
+    <param name="update_rate" value="200.0" />
+    <!-- Gazebo 刚启动时等一会再 spawn，避免队列超时 -->
+    <param name="spawn_start_delay" value="2.0" />
+    <!-- 是否等待 /shoot_race/spawn_task_board 后再生成靶子。true=比赛开始信号触发 -->
+    <param name="spawn_wait_for_signal" value="true" />
+
+    <!-- 尺寸缩放（整体变小） -->
+    <param name="fixed_scale" value="1.0" />
+    <param name="wheel_scale" value="1.0" />
+    <param name="moving_scale" value="1.0" />
+
+    <!-- 1号固定靶：位置固定，无系数，最高10分 -->
+    <param name="fixed_target_pose" value="[3.2, 0.2, 0.2, 0.0]" />
+    <!-- 2/3号靶位置：camouflage=迷彩×1，gray=灰色×2。按 target_X_position 选择 -->
+    <param name="target_2_position" value="camouflage" />
+    <param name="target_3_position" value="camouflage" />
+    <param name="wheel_target_pose_camouflage" value="[0.0, 1.15, 0.2, 0.0]" />
+    <param name="wheel_target_pose_gray" value="[-0.2, 1.15, 0.2, 0.0]" />
+    <param name="moving_target_pose_camouflage" value="[2.7, 3.0, 0.2, 0.0]" />
+    <param name="moving_target_pose_gray" value="[2.7, 3.2, 0.2, 0.0]" />
+
+    <!-- 固定靶：贴图 textures/fixed_target.png，6~10 环计分。靶心距地面 26cm -->
+    <param name="fixed_target_texture" value="$(find shoot_sim)/materials/scripts/fixed_target.material" />
+    <!-- 旋转靶（摩天轮）：5 个叶片可贴不同图。材质文件含 5 种材质，对应 textures/1.png～5.png -->
+    <param name="wheel_leaf_1_texture" value="$(find shoot_sim)/materials/scripts/wheel_leaf.material" />
+    <param name="wheel_leaf_2_texture" value="$(find shoot_sim)/materials/scripts/wheel_leaf.material" />
+    <param name="wheel_leaf_3_texture" value="$(find shoot_sim)/materials/scripts/wheel_leaf.material" />
+    <param name="wheel_leaf_4_texture" value="$(find shoot_sim)/materials/scripts/wheel_leaf.material" />
+    <param name="wheel_leaf_5_texture" value="$(find shoot_sim)/materials/scripts/wheel_leaf.material" />
+    <!-- 绕哪个轴旋转：x/y/z。摩天轮类似一般绕 x -->
+    <param name="wheel_axis" value="x" />
+    <!-- 旋转角速度(rad/s)，默认一圈约 26 秒：omega = 2*pi/26 ≈ 0.242 -->
+    <param name="wheel_omega" value="0.24166" />
+
+    <!-- 第三个靶子：长方形靶板，匀速横移，正面贴图。材质 textures/board.png -->
+    <param name="moving_board_texture" value="$(find shoot_sim)/materials/scripts/moving_board.material" />
+    <param name="move_axis" value="x" />
+    <!-- 平移靶：从中心到一侧的距离(米)、平移速度(米/秒)。总移动范围=2×move_range -->
+    <param name="move_range" value="0.15" />
+    <param name="move_speed" value="0.03" />
+  </node>
+</launch>
+

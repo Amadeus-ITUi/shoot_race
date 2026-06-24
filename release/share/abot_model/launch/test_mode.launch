@@ -1,0 +1,27 @@
+<launch>
+    <!-- Gazebo 空世界 -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="paused" default="false"/>
+        <arg name="use_sim_time" default="true"/>
+        <arg name="gui" default="true"/>
+        <arg name="headless" default="false"/>
+        <arg name="debug" default="false"/>
+    </include>
+
+    <!-- 加载你的 URDF -->
+    <param name="robot_description" textfile="$(find abot_model)/urdf/abot_model_mecanum.urdf"/>
+
+    <!-- 用 spawn_model 生成小车（这里指定了初始位置） -->
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
+          args="-param robot_description -urdf -model abot_model
+                -x 0 -y 0 -z 0.1" />
+
+    <!-- 发布关节状态（如果你需要） -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen">
+        <param name="publish_frequency" type="double" value="50.0" />
+    </node>
+
+    <!-- 可选：如果小车有移动控制插件，确保插件路径在环境变量中 -->
+    <!-- <env name="GAZEBO_PLUGIN_PATH" value="$(find abot_planar_move_plugin)/../../devel/lib:$(optenv GAZEBO_PLUGIN_PATH)" /> -->
+</launch>

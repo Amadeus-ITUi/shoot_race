@@ -1,0 +1,5 @@
+<launch>
+  <param name="use_sim_time" value="true" />
+  <include file="$(find robot_slam)/launch/include/gmapping.launch.xml" /> 
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find robot_slam)/rviz/view_gmapping.rviz" />
+</launch>

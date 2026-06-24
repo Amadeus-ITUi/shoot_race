@@ -1,0 +1,8 @@
+prefix=/home/leea/shoot_race/install
+
+Name: referee_system
+Description: Description of referee_system
+Version: 0.1.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

@@ -1,0 +1,36 @@
+<!-- 使用 shoot_sim_race（二进制节点，无源码）的仿真启动 -->
+<launch>
+    <arg name="paused" default="false"/>
+    <arg name="world_name" value="$(find abot_model)/worlds/race.world"/>
+    <arg name="use_sim_time" default="true"/>
+    <arg name="gui" default="true"/>
+    <arg name="headless" default="false"/>
+    <arg name="debug" default="false"/>
+    <arg name="x_pos" default="0"/>
+    <arg name="y_pos" default="0"/>
+    <arg name="z_pos" default="0"/>
+
+    <!-- 识别任务板材质：优先包内 materials；包只读时使用 ~/.referee_task_board -->
+    <env name="GAZEBO_RESOURCE_PATH" value="$(find referee_system)/materials:$(optenv HOME /tmp)/.referee_task_board:$(find shoot_sim)/materials:$(optenv GAZEBO_RESOURCE_PATH)" />
+    <env name="GAZEBO_PLUGIN_PATH" value="$(find abot_planar_move_plugin)/../../lib:$(optenv GAZEBO_PLUGIN_PATH)" />
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="world_name" value="$(arg world_name)" />
+        <arg name="debug" value="$(arg debug)" />
+        <arg name="gui" value="$(arg gui)" />
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+        <arg name="headless" value="$(arg headless)"/>
+    </include>
+    <param name="robot_description" textfile="$(find abot_model)/urdf/abot_model_mecanum.urdf" />
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen">
+        <param name="publish_frequency" type="double" value="50.0" />
+    </node>
+
+    <!-- shoot_sim_race：参数已嵌入二进制，launch 仅启动节点 -->
+    <include file="$(find shoot_sim)/launch/shoot_sim.launch" />
+    <include file="$(find shoot_sim)/launch/shoot_targets.launch" />
+
+    <include file="$(find referee_system)/launch/referee.launch" />
+    
+</launch>

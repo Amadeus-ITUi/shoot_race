@@ -1,0 +1,66 @@
+<launch>
+  <!-- 裁判系统：订阅命中话题、到达话题，累计得分 -->
+  <node pkg="referee_system_race" type="referee_node" name="referee" output="screen">
+    <param name="package_name" value="referee_system_race" />
+    <!-- 射击任务点区域：中心(x,y)+半宽半高，50×35cm 即 half_w=0.25 half_h=0.175 -->
+    <param name="task_point_1_x" value="1.8" />
+    <param name="task_point_1_y" value="0.2" />
+    <param name="task_point_1_half_w" value="0.25" />
+    <param name="task_point_1_half_h" value="0.175" />
+    <param name="task_point_2_x" value="1.16" />
+    <param name="task_point_2_y" value="1.125" />
+    <param name="task_point_2_half_w" value="0.25" />
+    <param name="task_point_2_half_h" value="0.175" />
+    <param name="task_point_3_x" value="2.68" />
+    <param name="task_point_3_y" value="1.88" />
+    <param name="task_point_3_half_w" value="0.175" />
+    <param name="task_point_3_half_h" value="0.25" />
+    <!-- 终点：finish 时按机器人 Gazebo 位姿判定。10分区域(内圈)中心+半宽半高，5分区域(外圈) -->
+    <param name="finish_10_x" value="0.02" />
+    <param name="finish_10_y" value="3.12" />
+    <param name="finish_10_half_w" value="0.25" />
+    <param name="finish_10_half_h" value="0.175" />
+    <param name="finish_5_x" value="0.15" />
+    <param name="finish_5_y" value="2.9" />
+    <param name="finish_5_half_w" value="0.45" />
+    <param name="finish_5_half_h" value="0.45" />
+    <param name="robot_model_name" value="abot_model" />
+    <!-- 机器人四轮矩形半宽、半高(m)，含轮子直径 9cm。abot 轮心 24×22cm + 轮径 → 约 33×31cm -->
+    <param name="robot_half_w" value="0.166" />
+    <param name="robot_half_h" value="0.155" />
+
+    <!-- 障碍区域 A：避障，平分为前后两半，每半无碰撞得 5 分，共 10 分。split_axis=x 沿 x 分，y 沿 y 分 -->
+    <param name="ob_a_x" value="1.5" />
+    <param name="ob_a_y" value="2.0" />
+    <param name="ob_a_half_w" value="0.7" />
+    <param name="ob_a_half_h" value="0.45" />
+    <param name="ob_a_split_axis" value="x" />
+    <!-- 障碍区域 B：越障，经过整个区域得 10 分 -->
+    <param name="ob_b_x" value="1.35" />
+    <param name="ob_b_y" value="2.925" />
+    <param name="ob_b_half_w" value="0.5" />
+    <param name="ob_b_half_h" value="0.5" />
+    <!-- 区域 A 碰撞检测：map_bumper 检测机器人-地图碰撞，abot_bumper 检测底盘碰撞 -->
+    <param name="ob_a_map_bumper_topic" value="/map_bumper" />
+    <param name="ob_a_abot_bumper_topic" value="/abot_bumper" />
+
+    <!-- 识别任务板：收到 /shoot_race/spawn_task_board 后随机选图生成，位置可调 -->
+    <param name="task_board_x" value="3.23" />
+    <param name="task_board_y" value="2.05" />
+    <param name="task_board_z" value="0.2" />
+    <param name="task_board_yaw" value="1.57" />
+    <!-- A4 竖版：210×297 mm -->
+    <param name="task_board_width" value="0.21" />
+    <param name="task_board_height" value="0.297" />
+
+    <!-- 分数参数：各项目最高分，可自定义 -->
+    <param name="score_shoot_point_max" value="10" />   <!-- 射击任务点1/2/3 每个最高分 -->
+    <param name="score_finish_5_max" value="5" />       <!-- 终点外圈最高分 -->
+    <param name="score_finish_10_max" value="5" />     <!-- 终点内圈最高分 -->
+    <param name="score_ob_a_half_max" value="5" />     <!-- 障碍A每半最高分 -->
+    <param name="score_ob_b_max" value="10" />         <!-- 障碍B最高分 -->
+    <param name="score_fixed_max" value="10" />        <!-- 固定靶最高分 -->
+    <param name="score_wheel_max" value="10" />        <!-- 旋转靶最高分 -->
+    <param name="score_moving_max" value="10" />       <!-- 平移靶最高分 -->
+  </node>
+</launch>

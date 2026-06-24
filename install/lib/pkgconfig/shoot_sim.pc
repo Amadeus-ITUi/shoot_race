@@ -1,0 +1,8 @@
+prefix=/home/leea/shoot_race/install
+
+Name: shoot_sim
+Description: Description of shoot_sim
+Version: 0.0.1
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

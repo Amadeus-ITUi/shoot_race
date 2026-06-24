@@ -1,0 +1,5 @@
+// 固定靶贴图，红绿蓝黄同心环。替换 textures/fixed_target.png 即可
+material FixedTargetTexture
+{
+  technique { pass { texture_unit { texture ../textures/fixed_target.png } } }
+}

@@ -1,0 +1,35 @@
+<launch>
+  <param name="use_sim_time" value="true" />
+
+  <arg name="map_name" default="map.yaml" />
+
+  <!-- <node name="map_server" pkg="map_server" type="map_server" args="$(find robot_slam)/maps/$(arg map_name)"/> -->
+
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find robot_slam)/maps/map.yaml"/>
+
+  <!-- Run lidar_loc -->
+  <!-- <node pkg="jie_ware" type="lidar_loc" name="lidar_loc" >
+    <param name="base_frame" value="base_footprint" />
+    <param name="odom_frame" value="odom" />
+    <param name="laser_frame" value="laser_link" />
+    <param name="laser_topic" value="scan" />
+  </node> -->
+
+
+  <include file="$(find robot_slam)/launch/include/amcl.launch.xml" >
+      <arg name="global_frame_id" value="map"/>
+      <arg name="odom_frame_id"   value="odom"/>
+      <arg name="base_frame_id"   value="base_footprint"/> 
+
+      <arg name="initial_pose_x" value="0"/>
+      <arg name="initial_pose_y" value="0"/>
+      <arg name="initial_pose_a" value="0"/>
+  </include>
+
+  <include file="$(find robot_slam)/launch/include/move_base.launch.xml" />
+
+
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find robot_slam)/rviz/nav.rviz" />
+  
+</launch>
