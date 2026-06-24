@@ -7,8 +7,8 @@
   输入靶子配置 → 等待模型加载
   → 导航至 shoot_1 → PID 瞄准环形靶 → 射击 → 上报到达
   → 导航至 shoot_2 → 追踪指定旋转叶片 → 射击 → 上报到达
-  → 导航至 shoot_3 → 面向右侧任务图片墙停留 1 秒
-  → 转向移动靶 → 暂时固定射击敌方医疗营区域
+  → 导航至 shoot_3 → 面向右侧任务图片墙，通过 Moonshot 视觉模型识别
+  → 根据识别结果选择移动靶区域并射击
   → 穿过障碍 A → 直行越过障碍 B → 导航至终点并上报
 
 用法：
@@ -19,18 +19,22 @@
   5. 运行本脚本：python3 shoot_race_shoot1_only.py
 """
 
-import rospy
 import actionlib
+import rospy
+import time
 from actionlib_msgs.msg import GoalStatus
+from cv_bridge import CvBridge
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from geometry_msgs.msg import Quaternion, Twist
 from geometry_msgs.msg import PointStamped
 from std_msgs.msg import String
 from gazebo_msgs.msg import ModelStates
-from sensor_msgs.msg import CameraInfo
+from sensor_msgs.msg import CameraInfo, Image
 from std_srvs.srv import Trigger
 from target_detector.msg import MarkerPixelArray
 from math import atan2, cos, pi, radians, sin
+
+from moonshot_vision import MoonshotVisionError, MoonshotVisionRecognizer
 
 
 # ============ 导航点 ============
@@ -67,13 +71,24 @@ WHEEL_VERTICAL_TOLERANCE = 22
 WHEEL_MARKER_MAX_AGE = 0.5
 WHEEL_STABLE_FRAMES = 2
 
-# 3号移动靶：医疗营位于中间区域(region=2)，先固定选择该区域。
+# 3号移动靶：视觉识别结果决定区域。板宽约 0.18m，射击判定区域中心间距约 0.12m。
 MOVING_TARGET_MODEL = "target_moving"
 MOVING_AIM_TIMEOUT = 15
 MOVING_X_TOLERANCE = 0.015
 MOVING_STABLE_FRAMES = 4
 MOVING_TRACK_KP = 1.4
 MOVING_TRACK_MAX = 0.12
+MOVING_REGION_X_OFFSET = {
+    1: -0.12,
+    2: 0.0,
+    3: 0.12,
+}
+
+# 任务板联网视觉识别
+TASK_BOARD_IMAGE_TOPIC = "/camera/image"
+TASK_BOARD_IMAGE_MAX_AGE = 2.0
+TASK_BOARD_IMAGE_WAIT_TIMEOUT = 5.0
+TASK_BOARD_FALLBACK_REGION = 2
 
 # ============ 障碍 B 直接控制参数 ============
 DIRECT_DRIVE_TIMEOUT = 20
@@ -137,11 +152,16 @@ class Shoot1Only:
         self._camera_center_u = 400
         self._camera_center_v = 400
         self._shoot_line_v = None
+        self._bridge = CvBridge()
+        self._latest_camera_image = None
+        self._latest_camera_stamp = None
+        self._vision_recognizer = MoonshotVisionRecognizer()
 
         rospy.Subscriber("/gazebo/model_states", ModelStates, self._on_model_states, queue_size=1)
         rospy.Subscriber("/target_center_pixel", PointStamped, self._on_target_center, queue_size=1)
         rospy.Subscriber("/ar_marker_pixels", MarkerPixelArray, self._on_marker_pixels, queue_size=1)
         rospy.Subscriber("/camera/camera_info", CameraInfo, self._on_camera_info, queue_size=1)
+        rospy.Subscriber(TASK_BOARD_IMAGE_TOPIC, Image, self._on_camera_image, queue_size=1)
 
     def _on_model_states(self, msg):
         self._model_states = msg
@@ -157,6 +177,16 @@ class Shoot1Only:
         if len(msg.K) >= 6:
             self._camera_center_u = msg.K[2]
             self._camera_center_v = msg.K[5]
+
+    def _on_camera_image(self, msg):
+        try:
+            self._latest_camera_image = self._bridge.imgmsg_to_cv2(
+                msg,
+                desired_encoding="bgr8",
+            ).copy()
+            self._latest_camera_stamp = rospy.Time.now()
+        except Exception as exc:
+            rospy.logwarn_throttle(5.0, "[任务识别] 相机图像转换失败: %s", exc)
 
     def wait_for_move_base(self, timeout=60):
         rospy.loginfo("[shoot1] 等待 move_base...")
@@ -350,9 +380,63 @@ class Shoot1Only:
             rate.sleep()
         return False
 
-    def shoot_at_moving_medical_target(self):
-        """暂时固定射击移动靶中间的敌方医疗营区域(region=2)。"""
-        rospy.loginfo("[shoot3] 固定选择敌方医疗营区域(region=2)，开始跟踪移动靶中心")
+    def recognize_task_board(self):
+        """拍摄任务板并通过 Moonshot 视觉模型返回目标区域。"""
+        rospy.loginfo("[任务识别] 等待任务板相机画面: %s", TASK_BOARD_IMAGE_TOPIC)
+        start_wall = time.monotonic()
+        rate = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            image_ready = self._latest_camera_image is not None
+            image_fresh = (
+                self._latest_camera_stamp is not None
+                and (rospy.Time.now() - self._latest_camera_stamp).to_sec()
+                <= TASK_BOARD_IMAGE_MAX_AGE
+            )
+            if image_ready and image_fresh:
+                break
+            if time.monotonic() - start_wall > TASK_BOARD_IMAGE_WAIT_TIMEOUT:
+                rospy.logwarn(
+                    "[任务识别] 等待相机超时，回退区域 %d",
+                    TASK_BOARD_FALLBACK_REGION,
+                )
+                return TASK_BOARD_FALLBACK_REGION
+            rate.sleep()
+
+        try:
+            result = self._vision_recognizer.recognize(
+                self._latest_camera_image.copy()
+            )
+            rospy.loginfo(
+                "[任务识别] object=%s confidence=%.2f region=%d description=%s",
+                result.object_name,
+                result.confidence,
+                result.region,
+                result.description,
+            )
+            return result.region
+        except MoonshotVisionError as exc:
+            rospy.logwarn(
+                "[任务识别] %s，回退区域 %d",
+                exc,
+                TASK_BOARD_FALLBACK_REGION,
+            )
+            return TASK_BOARD_FALLBACK_REGION
+
+    def shoot_at_moving_target(self, target_region):
+        """跟踪移动靶，并根据视觉识别结果射击区域 1/2/3。"""
+        if target_region not in MOVING_REGION_X_OFFSET:
+            rospy.logwarn(
+                "[shoot3] 非法区域 %s，回退区域 %d",
+                target_region,
+                TASK_BOARD_FALLBACK_REGION,
+            )
+            target_region = TASK_BOARD_FALLBACK_REGION
+        region_offset = MOVING_REGION_X_OFFSET[target_region]
+        rospy.loginfo(
+            "[shoot3] 选择移动靶区域=%d，横向偏移=%.3fm，开始跟踪",
+            target_region,
+            region_offset,
+        )
         self.move_base.cancel_all_goals()
         rospy.sleep(0.2)
         target_yaw = radians(90)
@@ -378,7 +462,8 @@ class Shoot1Only:
 
             robot_x, robot_y, robot_yaw = robot
             target_x, _ = target
-            error_x = target_x - robot_x
+            aim_x = target_x + region_offset
+            error_x = aim_x - robot_x
             error_y = hold_y - robot_y
             yaw_error = normalize_angle(target_yaw - robot_yaw)
 
@@ -391,12 +476,14 @@ class Shoot1Only:
                 self._stop_robot()
                 if stable_frames >= MOVING_STABLE_FRAMES:
                     rospy.loginfo(
-                        "[shoot3] 医疗营区域对准，robot_x=%.3f target_x=%.3f",
+                        "[shoot3] 区域%d对准，robot_x=%.3f aim_x=%.3f target_x=%.3f",
+                        target_region,
                         robot_x,
+                        aim_x,
                         target_x,
                     )
                     if self._do_shoot():
-                        rospy.loginfo("[shoot3] 敌方医疗营区域射击完成")
+                        rospy.loginfo("[shoot3] 移动靶区域%d射击完成", target_region)
                         return True
                     stable_frames = 0
                     rospy.sleep(0.5)
@@ -421,7 +508,8 @@ class Shoot1Only:
                 self.cmd_vel_pub.publish(t)
                 rospy.loginfo_throttle(
                     1.0,
-                    "[shoot3] 跟踪医疗营区域 x误差=%.3f y误差=%.3f yaw误差=%.1f°",
+                    "[shoot3] 跟踪区域%d x误差=%.3f y误差=%.3f yaw误差=%.1f°",
+                    target_region,
                     error_x,
                     error_y,
                     yaw_error * 180.0 / pi,
@@ -662,16 +750,17 @@ class Shoot1Only:
             return
         self._stop_robot()
         self.send_arrival("shoot_3")
-        rospy.loginfo("[shoot3] 面向任务图片墙，预留识别阶段，停留 %.1f 秒", POINT_DWELL_TIME)
+        rospy.loginfo("[shoot3] 面向任务图片墙，等待画面稳定 %.1f 秒", POINT_DWELL_TIME)
         rospy.sleep(POINT_DWELL_TIME)
+        target_region = self.recognize_task_board()
 
         x, y, yaw = SHOOT_3_SHOOT_GOAL
         rospy.loginfo("[shoot3] 转向移动靶并重新精对位")
         if not self.refine_pose(x, y, yaw):
             rospy.logwarn("[shoot3] 转向移动靶失败")
             return
-        if not self.shoot_at_moving_medical_target():
-            rospy.logwarn("[shoot3] 敌方医疗营区域射击失败，继续后续流程")
+        if not self.shoot_at_moving_target(target_region):
+            rospy.logwarn("[shoot3] 移动靶区域%d射击失败，继续后续流程", target_region)
 
         rospy.loginfo("[路线] 障碍 A 已在前往 shoot_3 的途中自动通过，不再返回")
         rospy.loginfo("[狭窄通道] 朝 3 号靶方向向北，再前往障碍 B 东侧入口")

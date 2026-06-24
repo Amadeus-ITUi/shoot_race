@@ -1,2 +1,8 @@
 # 构建生成，勿提交
 src/referee_system/scripts/release_params.py
+
+# 本地密钥配置，禁止提交
+.env
+.env.*
+__pycache__/
+*.py[cod]

@@ -10,7 +10,7 @@ if [ -f "$SCRIPT_DIR/release/setup.bash" ]; then
 else
   RELEASE_DIR="$SCRIPT_DIR"
 fi
-SETUP_CMD="source /opt/ros/noetic/setup.bash; source $RELEASE_DIR/setup.bash"
+SETUP_CMD="source /opt/ros/noetic/setup.bash; source /usr/share/gazebo/setup.sh; source $RELEASE_DIR/setup.bash"
 
 gnome-terminal --window -e 'bash -c "exec bash"' \
 --tab -e "bash -c \"sleep 1; $SETUP_CMD; roslaunch abot_model gazebo_world_2026.launch; exec bash\"" \
