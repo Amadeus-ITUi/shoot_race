@@ -35,80 +35,61 @@ from target_detector.msg import MarkerPixelArray
 from math import atan2, cos, pi, radians, sin
 
 from moonshot_vision import MoonshotVisionError, MoonshotVisionRecognizer
-
-
-# ============ 导航点 ============
-SHOOT_1_GOAL = (1.80, 0.20, 0)    # shoot_1：裁判区域中心（环形靶）
-SHOOT_2_GOAL = (1.16, 1.125, 180)  # shoot_2：面向西侧旋转靶
-SHOOT_3_INSPECTION_GOAL = (2.68, 1.88, 0)  # 先面向东侧任务图片墙
-SHOOT_3_SHOOT_GOAL = (2.68, 1.88, 90)      # 再面向北侧移动靶
-
-# 障碍 B 中心为 (1.35, 2.925)，终点在其西侧，因此应从东向西越过。
-# shoot_3 后先朝 3 号靶方向向北，通过右侧狭窄通道，再转向 B 的东侧入口。
-NARROW_PASSAGE_GOALS = [
-    (2.68, 2.30, 90),
-    (2.68, 2.75, 90),
-    (2.15, 2.925, 180),
-]
-OBSTACLE_B_TARGET_Y = 2.925
-OBSTACLE_B_EXIT_X = 0.75
-FINISH_GOAL = (0.02, 3.12, 180)  # 保持越障后的朝向，避免终点前多余掉头
-
-TARGET_MODEL_NAMES = ["target_fixed", "target_wheel", "target_moving"]
-NAV_TIMEOUT = 120
-POINT_DWELL_TIME = 1.0
-
-# ============ 射击瞄准参数 ============
-PID_KP = 5.5
-ANGULAR_MAX = 0.5
-HORIZONTAL_TOLERANCE = 15
-AIM_TIMEOUT = 30
-SHOOT_SERVICE = "/shoot_sim/shoot"
-
-# 旋转靶：横向靠车体转向修正，纵向等待指定叶片转到枪口高度
-WHEEL_HORIZONTAL_TOLERANCE = 18
-WHEEL_VERTICAL_TOLERANCE = 22
-WHEEL_MARKER_MAX_AGE = 0.5
-WHEEL_STABLE_FRAMES = 2
-
-# 3号移动靶：视觉识别结果决定区域。板宽约 0.18m，射击判定区域中心间距约 0.12m。
-MOVING_TARGET_MODEL = "target_moving"
-MOVING_AIM_TIMEOUT = 15
-MOVING_X_TOLERANCE = 0.015
-MOVING_STABLE_FRAMES = 4
-MOVING_TRACK_KP = 1.4
-MOVING_TRACK_MAX = 0.12
-MOVING_REGION_X_OFFSET = {
-    1: -0.12,
-    2: 0.0,
-    3: 0.12,
-}
-
-# 任务板联网视觉识别
-TASK_BOARD_IMAGE_TOPIC = "/camera/image"
-TASK_BOARD_IMAGE_MAX_AGE = 2.0
-TASK_BOARD_IMAGE_WAIT_TIMEOUT = 5.0
-TASK_BOARD_FALLBACK_REGION = 2
-
-# ============ 障碍 B 直接控制参数 ============
-DIRECT_DRIVE_TIMEOUT = 20
-DIRECT_DRIVE_SPEED = 0.55
-DIRECT_YAW_KP = 1.8
-DIRECT_YAW_MIN = 1.0
-DIRECT_YAW_MAX = 1.5
-DIRECT_YAW_TOLERANCE = radians(3)
-DIRECT_X_KP = 1.2
-DIRECT_X_MAX = 0.15
-
-# 任务点最终对位：move_base 到达后再用 Gazebo 真值做厘米级闭环。
-FINE_POSITION_TOLERANCE = 0.010
-FINE_YAW_TOLERANCE = radians(3)
-FINE_CONTROL_TIMEOUT = 15
-FINE_LINEAR_KP = 1.2
-FINE_LINEAR_MAX = 0.12
-FINE_ANGULAR_KP = 1.8
-FINE_ANGULAR_MIN = 1.0
-FINE_ANGULAR_MAX = 1.5
+from race_params import (
+    DIRECT_DRIVE_SPEED,
+    DIRECT_DRIVE_TIMEOUT,
+    DIRECT_X_KP,
+    DIRECT_X_MAX,
+    DIRECT_YAW_KP,
+    DIRECT_YAW_MAX,
+    DIRECT_YAW_MIN,
+    DIRECT_YAW_TOLERANCE,
+    FINE_ANGULAR_KP,
+    FINE_ANGULAR_MAX,
+    FINE_ANGULAR_MIN,
+    FINE_CONTROL_TIMEOUT,
+    FINE_LINEAR_KP,
+    FINE_LINEAR_MAX,
+    FINE_POSITION_TOLERANCE,
+    FINE_YAW_TOLERANCE,
+    FINISH_GOAL,
+    MOONSHOT_MIN_CONFIDENCE,
+    MOONSHOT_REQUEST_RETRIES,
+    MOONSHOT_REQUEST_TIMEOUT,
+    MOVING_TARGET_MODEL,
+    NARROW_PASSAGE_GOALS,
+    NAV_TIMEOUT,
+    OBSTACLE_B_EXIT_X,
+    OBSTACLE_B_TARGET_Y,
+    POINT_DWELL_TIME,
+    SHOOT1_AIM_TIMEOUT,
+    SHOOT1_ANGULAR_KP,
+    SHOOT1_ANGULAR_MAX,
+    SHOOT1_HORIZONTAL_TOLERANCE,
+    SHOOT2_AIM_TIMEOUT,
+    SHOOT2_ANGULAR_KP,
+    SHOOT2_ANGULAR_MAX,
+    SHOOT2_HORIZONTAL_TOLERANCE,
+    SHOOT2_MARKER_MAX_AGE,
+    SHOOT2_STABLE_FRAMES,
+    SHOOT2_VERTICAL_TOLERANCE,
+    SHOOT3_AIM_TIMEOUT,
+    SHOOT3_REGION_X_OFFSET,
+    SHOOT3_STABLE_FRAMES,
+    SHOOT3_TRACK_KP,
+    SHOOT3_TRACK_MAX,
+    SHOOT3_X_TOLERANCE,
+    SHOOT_1_GOAL,
+    SHOOT_2_GOAL,
+    SHOOT_3_INSPECTION_GOAL,
+    SHOOT_3_SHOOT_GOAL,
+    SHOOT_SERVICE,
+    TARGET_MODEL_NAMES,
+    TASK_BOARD_FALLBACK_REGION,
+    TASK_BOARD_IMAGE_MAX_AGE,
+    TASK_BOARD_IMAGE_TOPIC,
+    TASK_BOARD_IMAGE_WAIT_TIMEOUT,
+)
 
 
 def euler_to_quaternion(yaw_deg):
@@ -155,7 +136,11 @@ class Shoot1Only:
         self._bridge = CvBridge()
         self._latest_camera_image = None
         self._latest_camera_stamp = None
-        self._vision_recognizer = MoonshotVisionRecognizer()
+        self._vision_recognizer = MoonshotVisionRecognizer(
+            timeout=MOONSHOT_REQUEST_TIMEOUT,
+            retries=MOONSHOT_REQUEST_RETRIES,
+            min_confidence=MOONSHOT_MIN_CONFIDENCE,
+        )
 
         rospy.Subscriber("/gazebo/model_states", ModelStates, self._on_model_states, queue_size=1)
         rospy.Subscriber("/target_center_pixel", PointStamped, self._on_target_center, queue_size=1)
@@ -255,9 +240,9 @@ class Shoot1Only:
             return None
         return pose.position.x, pose.position.y
 
-    def _pid_angular(self, error_u):
-        out = PID_KP * error_u
-        out = max(-ANGULAR_MAX, min(ANGULAR_MAX, out))
+    def _pid_angular(self, error_u, kp, max_speed):
+        out = kp * error_u
+        out = max(-max_speed, min(max_speed, out))
         return -out
 
     def _do_shoot(self):
@@ -276,7 +261,7 @@ class Shoot1Only:
         rate = rospy.Rate(20)
         start = rospy.Time.now()
         while not rospy.is_shutdown():
-            if (rospy.Time.now() - start).to_sec() > AIM_TIMEOUT:
+            if (rospy.Time.now() - start).to_sec() > SHOOT1_AIM_TIMEOUT:
                 rospy.logwarn("[shoot1] 瞄准超时")
                 self._stop_robot()
                 return False
@@ -287,8 +272,12 @@ class Shoot1Only:
                 continue
             u, v = self._target_center
             error_u = u - self._camera_center_u
-            ang = self._pid_angular(error_u)
-            if abs(error_u) < HORIZONTAL_TOLERANCE:
+            ang = self._pid_angular(
+                error_u,
+                SHOOT1_ANGULAR_KP,
+                SHOOT1_ANGULAR_MAX,
+            )
+            if abs(error_u) < SHOOT1_HORIZONTAL_TOLERANCE:
                 self._stop_robot()
                 # 固定靶靶心与弹道同高，记录其像素行作为后续旋转靶的枪口高度线。
                 self._shoot_line_v = v
@@ -315,14 +304,14 @@ class Shoot1Only:
 
         while not rospy.is_shutdown():
             now = rospy.Time.now()
-            if (now - start).to_sec() > AIM_TIMEOUT:
+            if (now - start).to_sec() > SHOOT2_AIM_TIMEOUT:
                 rospy.logwarn("[shoot2] 瞄准超时，未等到 %d 号叶片进入射击窗口", target_marker_id)
                 self._stop_robot()
                 return False
 
             marker_is_fresh = (
                 self._marker_stamp is not None
-                and (now - self._marker_stamp).to_sec() <= WHEEL_MARKER_MAX_AGE
+                and (now - self._marker_stamp).to_sec() <= SHOOT2_MARKER_MAX_AGE
             )
             marker_pixel = self._marker_pixels.get(target_marker_id) if marker_is_fresh else None
             if marker_pixel is None:
@@ -346,18 +335,22 @@ class Shoot1Only:
             error_v = v - shoot_line_v
 
             # 车体只能修正水平方向；叶片高度随旋转变化，因此纵向只等待合适时机。
-            if abs(error_u) >= WHEEL_HORIZONTAL_TOLERANCE:
+            if abs(error_u) >= SHOOT2_HORIZONTAL_TOLERANCE:
                 stable_frames = 0
                 t = Twist()
-                t.angular.z = self._pid_angular(error_u)
+                t.angular.z = self._pid_angular(
+                    error_u,
+                    SHOOT2_ANGULAR_KP,
+                    SHOOT2_ANGULAR_MAX,
+                )
                 self.cmd_vel_pub.publish(t)
                 rate.sleep()
                 continue
 
             self._stop_robot()
-            if abs(error_v) <= WHEEL_VERTICAL_TOLERANCE:
+            if abs(error_v) <= SHOOT2_VERTICAL_TOLERANCE:
                 stable_frames += 1
-                if stable_frames >= WHEEL_STABLE_FRAMES:
+                if stable_frames >= SHOOT2_STABLE_FRAMES:
                     rospy.loginfo(
                         "[shoot2] %d 号叶片进入射击窗口，像素误差=(%.1f, %.1f)",
                         target_marker_id,
@@ -424,14 +417,14 @@ class Shoot1Only:
 
     def shoot_at_moving_target(self, target_region):
         """跟踪移动靶，并根据视觉识别结果射击区域 1/2/3。"""
-        if target_region not in MOVING_REGION_X_OFFSET:
+        if target_region not in SHOOT3_REGION_X_OFFSET:
             rospy.logwarn(
                 "[shoot3] 非法区域 %s，回退区域 %d",
                 target_region,
                 TASK_BOARD_FALLBACK_REGION,
             )
             target_region = TASK_BOARD_FALLBACK_REGION
-        region_offset = MOVING_REGION_X_OFFSET[target_region]
+        region_offset = SHOOT3_REGION_X_OFFSET[target_region]
         rospy.loginfo(
             "[shoot3] 选择移动靶区域=%d，横向偏移=%.3fm，开始跟踪",
             target_region,
@@ -446,7 +439,7 @@ class Shoot1Only:
         start = rospy.Time.now()
 
         while not rospy.is_shutdown():
-            if (rospy.Time.now() - start).to_sec() > MOVING_AIM_TIMEOUT:
+            if (rospy.Time.now() - start).to_sec() > SHOOT3_AIM_TIMEOUT:
                 rospy.logwarn("[shoot3] 移动靶中心瞄准超时")
                 self._stop_robot()
                 return False
@@ -468,13 +461,13 @@ class Shoot1Only:
             yaw_error = normalize_angle(target_yaw - robot_yaw)
 
             if (
-                abs(error_x) <= MOVING_X_TOLERANCE
+                abs(error_x) <= SHOOT3_X_TOLERANCE
                 and abs(error_y) <= FINE_POSITION_TOLERANCE
                 and abs(yaw_error) <= FINE_YAW_TOLERANCE
             ):
                 stable_frames += 1
                 self._stop_robot()
-                if stable_frames >= MOVING_STABLE_FRAMES:
+                if stable_frames >= SHOOT3_STABLE_FRAMES:
                     rospy.loginfo(
                         "[shoot3] 区域%d对准，robot_x=%.3f aim_x=%.3f target_x=%.3f",
                         target_region,
@@ -492,8 +485,8 @@ class Shoot1Only:
                 t = Twist()
                 # 面向北时，局部 +y 对应世界 -x。
                 t.linear.y = max(
-                    -MOVING_TRACK_MAX,
-                    min(MOVING_TRACK_MAX, -MOVING_TRACK_KP * error_x),
+                    -SHOOT3_TRACK_MAX,
+                    min(SHOOT3_TRACK_MAX, -SHOOT3_TRACK_KP * error_x),
                 )
                 t.linear.x = max(
                     -FINE_LINEAR_MAX,
@@ -740,7 +733,8 @@ class Shoot1Only:
         if not self.goto_goal(x, y, yaw, fine_align=True):
             rospy.logwarn("[shoot2] 未到达 shoot_2")
             return
-        self.shoot_at_wheel_target(wheel_target_id)
+        if not self.shoot_at_wheel_target(wheel_target_id):
+            rospy.logwarn("[shoot2] 旋转靶射击未完成，继续后续流程")
         self.send_arrival("shoot_2")
 
         x, y, yaw = SHOOT_3_INSPECTION_GOAL
